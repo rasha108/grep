@@ -2,23 +2,17 @@ import argparse
 import sys
 import re
 
-
-
-import argparse
-import sys
-import re
-
-
 def output(line):
     print(line)
 
-def Index_difinition(pattern, lines, b_context, context, a_context):
+def Index(pattern, lines, b_context, context, a_context):
     index = []
     new_index = []
 
-    for idx, line in enumerate(lines):
-        if pattern in line:
-            index.append(idx)
+    for n, line in enumerate(lines):
+        find = re.search(pattern, line)
+        if find:
+            index.append(n)
 
     if b_context > 0:
         count = b_context
@@ -62,7 +56,7 @@ def Context(idx, valid_index):
         return 1
     return 0
 
-def Search_pattern(pattern, line):
+def Find(pattern, line):
     search = re.search(pattern, line)
     print(search)
     if not search:
@@ -78,7 +72,7 @@ def grep(lines, params):
             if params.count:
                 if compare(params.pattern, line, params.ignore_case, params.invert) and params.line_number:
                     a += 1
-                    output('{}:{}'.format(n, line))
+                    output('{}:{}'.format(n+1, line))
 
                 if compare(params.pattern, line, params.ignore_case, params.invert):
                     a += 1
@@ -87,15 +81,15 @@ def grep(lines, params):
             else:
                 if compare(params.pattern, line, params.ignore_case, params.invert):
                     if params.line_number:
-                        output('{}:{}'.format(n, line))
+                        output('{}:{}'.format(n+1, line))
                     else:
-                        output(line)
+                        output('{}'.format(line))
 
 
         if not params.ignore_case and not params.invert and not params.count and not params.context and not params.before_context and not params.after_context:
             if params.line_number:
                 if re.search(params.pattern, line):
-                    output('{}:{}'.format(n, line))
+                    output('{}:{}'.format(n+1, line))
 
 
         if not params.ignore_case and not params.invert and not params.line_number and not params.context and not params.before_context and not params.after_context:
@@ -104,34 +98,45 @@ def grep(lines, params):
                     a+=1
 
         if params.context or params.before_context or params.after_context:
-            valid_index = Index_difinition(params.pattern, lines, params.before_context,
+            valid_index = Index(params.pattern, lines, params.before_context,
                                            params.context, params.after_context)
             if params.context:
                 if Context(n, valid_index):
                     if params.line_number:
-                        output('{}:{}'.format(n, line))
+                        if Find(params.pattern, line):
+                            output('{}:{}'.format(n+1, line))
+                        else:
+                            output('{}-{}'.format(n + 1, line))
                     else:
-                        output(line)
+                        output('{}'.format(line))
             if params.before_context:
                 if Context(n, valid_index):
                     if params.line_number:
-                        output('{}:{}'.format(n, line))
+                        if Find(params.pattern, line):
+                            output('{}:{}'.format(n+1, line))
+                        else:
+                            output('{}-{}'.format(n + 1, line))
                     else:
                         output(line)
             if params.after_context:
                 if Context(n, valid_index):
                     if params.line_number:
-                        output('{}:{}'.format(n, line))
+                        if Find(params.pattern, line):
+                            output('{}:{}'.format(n+1, line))
+                        else:
+                            output('{}-{}'.format(n + 1, line))
                     else:
-                        output(line)
+                        output('{}'.format(line))
 
-        elif not params.invert and not params.ignore_case and not params.count and not params.line_number \
-                and not params.context and not params.before_context and not params.after_context:
-            if Search_pattern(params.pattern, line):
-                output(line)
+        elif not params.invert and not params.ignore_case and not params.count and not params.line_number and not params.context and not params.before_context and not params.after_context:
+            if Find(params.pattern, line):
+                output('{}'.format(line))
 
     if params.count:
         output('{}'.format(a))
+
+
+
 
 
 def parse_args(args):
