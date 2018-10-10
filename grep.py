@@ -2,141 +2,72 @@ import argparse
 import sys
 import re
 
+
 def output(line):
     print(line)
 
-def Index(pattern, lines, b_context, context, a_context):
-    index = []
-    new_index = []
-
-    for n, line in enumerate(lines):
-        find = re.search(pattern, line)
-        if find:
-            index.append(n)
-
-    if b_context > 0:
-        count = b_context
-        for x in index:
-            for j in range(count + 1):
-                y = x - (count - j)
-                if y >= 0 and not y in new_index:
-                    new_index.append(y)
-
-    if a_context > 0:
-        count = a_context
-        for x in index:
-            for j in range(count + 1):
-                y = x + j
-                if y >=0 and y < len(lines) and not y in new_index:
-                    new_index.append(y)
-
-    if context > 0:
-        count = context
-        for x in index:
-            for j in range(count + 1):
-                y = x - (count - j)
-                if y >= 0 and not y in new_index:
-                    new_index.append(y)
-            for j in range(count + 1):
-                y = x + j
-                if y >=0 and y < len(lines) and not y in new_index:
-                    new_index.append(y)
-
-    return new_index
 
 def compare(pattern, line, case, invert):
     flag = re.IGNORECASE if case else 0
-    match = re.search(pattern, line, flag)
+    match = bool(re.search(pattern, line, flag))
     if invert:
         match = not match
     return match
 
-def Context(idx, valid_index):
-    if idx in valid_index:
-        return 1
-    return 0
 
-def Find(pattern, line):
-    search = re.search(pattern, line)
-    print(search)
-    if not search:
-        return 0
-    return 1
+def count(lines, params):
+    a = 0
+    for line in lines:
+        line = line.rstrip()
+        if compare(params.pattern, line, params.ignore_case, params.invert):
+            a += 1
+    output('{}'.format(a))
+
 
 def grep(lines, params):
-    a = 0
-    params.pattern = params.pattern.replace('?', '.').replace('*','.*?')
-    for n, line in enumerate(lines):
-        line = line.rstrip()
-        if params.ignore_case or params.invert:
-            if params.count:
-                if compare(params.pattern, line, params.ignore_case, params.invert) and params.line_number:
-                    a += 1
-                    output('{}:{}'.format(n+1, line))
-
-                if compare(params.pattern, line, params.ignore_case, params.invert):
-                    a += 1
-                    output('{}'.format(line))
-
-            else:
-                if compare(params.pattern, line, params.ignore_case, params.invert):
-                    if params.line_number:
-                        output('{}:{}'.format(n+1, line))
-                    else:
-                        output('{}'.format(line))
+    params.pattern = params.pattern.replace('?', '.').replace('*', '.*?')
 
 
-        if not params.ignore_case and not params.invert and not params.count and not params.context and not params.before_context and not params.after_context:
-            if params.line_number:
-                if re.search(params.pattern, line):
-                    output('{}:{}'.format(n+1, line))
-
-
-        if not params.ignore_case and not params.invert and not params.line_number and not params.context and not params.before_context and not params.after_context:
-            if params.count:
-                if re.search(params.pattern,line):
-                    a+=1
-
-        if params.context or params.before_context or params.after_context:
-            valid_index = Index(params.pattern, lines, params.before_context,
-                                           params.context, params.after_context)
-            if params.context:
-                if Context(n, valid_index):
-                    if params.line_number:
-                        if Find(params.pattern, line):
-                            output('{}:{}'.format(n+1, line))
-                        else:
-                            output('{}-{}'.format(n + 1, line))
-                    else:
-                        output('{}'.format(line))
-            if params.before_context:
-                if Context(n, valid_index):
-                    if params.line_number:
-                        if Find(params.pattern, line):
-                            output('{}:{}'.format(n+1, line))
-                        else:
-                            output('{}-{}'.format(n + 1, line))
-                    else:
-                        output(line)
-            if params.after_context:
-                if Context(n, valid_index):
-                    if params.line_number:
-                        if Find(params.pattern, line):
-                            output('{}:{}'.format(n+1, line))
-                        else:
-                            output('{}-{}'.format(n + 1, line))
-                    else:
-                        output('{}'.format(line))
-
-        elif not params.invert and not params.ignore_case and not params.count and not params.line_number and not params.context and not params.before_context and not params.after_context:
-            if Find(params.pattern, line):
-                output('{}'.format(line))
+    before = max(params.context, params.before_context)
+    after = max(params.context, params.after_context)
 
     if params.count:
-        output('{}'.format(a))
+        count(lines, params)
 
+    else:
+        count_after = 0
+        buffer = [None] * before
 
+        for n, line in enumerate(lines):
+            line = line.rstrip()
 
+            if compare(params.pattern, line, params.ignore_case, params.invert):
+                if buffer:
+                    print(buffer)
+                    for id_bf, line_bf in enumerate(buffer):
+                        if line_bf:
+                            if params.line_number:
+                                line_bf = '{}-{}'.format(n - before + id_bf + 1, line_bf)
+                            output(line_bf)
+
+                    buffer = [None] * before
+
+                if params.line_number:
+                    line = '{}:{}'.format(n + 1, line)
+                output(line)
+
+                count_after = after
+
+            elif count_after:
+                count_after -= 1
+                if params.line_number:
+                    line = '{}-{}'.format(n + 1, line)
+                output(line)
+
+            else:
+                buffer.append(line)
+                if len(buffer) > before:
+                    buffer.pop(0)
 
 
 def parse_args(args):
