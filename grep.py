@@ -2,9 +2,47 @@ import argparse
 import sys
 import re
 
-
 def output(line):
     print(line)
+
+def Index(pattern, lines, b_context, context, a_context):
+    index = []
+    new_index = []
+
+    for n, line in enumerate(lines):
+        find = re.search(pattern, line)
+        if find:
+            index.append(n)
+
+    if b_context > 0:
+        count = b_context
+        for x in index:
+            for j in range(count + 1):
+                y = x - (count - j)
+                if not y in new_index:
+                    new_index.append(y)
+
+    if a_context > 0:
+        count = a_context
+        for x in index:
+            for j in range(count + 1):
+                y = x + j
+                if y < len(lines) and not y in new_index:
+                    new_index.append(y)
+
+    if context > 0:
+        count = context
+        for x in index:
+            for j in range(count + 1):
+                y = x - (count - j)
+                if not y in new_index:
+                    new_index.append(y)
+            for j in range(count + 1):
+                y = x + j
+                if y < len(lines) and not y in new_index:
+                    new_index.append(y)
+
+    return new_index
 
 
 def compare(pattern, line, case, invert):
@@ -25,49 +63,62 @@ def count(lines, params):
 
 
 def grep(lines, params):
-    params.pattern = params.pattern.replace('?', '.').replace('*', '.*?')
-
-
-    before = max(params.context, params.before_context)
-    after = max(params.context, params.after_context)
+    params.pattern = params.pattern.replace('?', '.').replace('*','.*?')
 
     if params.count:
         count(lines, params)
 
+    elif not params:
+        for line in lines:
+            line = line.rstrip()
+            if re.search(params.pattern, line):
+                output('{}'.format(line))
+
     else:
-        count_after = 0
-        buffer = [None] * before
+        if params.context or params.before_context or params.after_context:
+                valid_index = Index(params.pattern, lines, params.before_context,
+                                    params.context, params.after_context)
+
+        all_context=(params.context or params.before_context or params.after_context)
+
+        buffer = [None] * all_context
+
+        print(buffer)
 
         for n, line in enumerate(lines):
             line = line.rstrip()
 
             if compare(params.pattern, line, params.ignore_case, params.invert):
-                if buffer:
-                    print(buffer)
-                    for id_bf, line_bf in enumerate(buffer):
-                        if line_bf:
+                if params.line_number:
+                    output('{}:{}'.format(n + 1, line))
+
+                else:
+                    output('{}'.format(line))
+
+            elif params.context or params.before_context or params.after_context:
+                    if n in valid_index:
+                        for ind_buf,line_buf in enumerate(buffer):
                             if params.line_number:
-                                line_bf = '{}-{}'.format(n - before + id_bf + 1, line_bf)
-                            output(line_bf)
+                                if compare(params.pattern, line, params.ignore_case, params.invert):
+                                    line_buf = ('{}:{}'.format(n+1, line))
+                                else:
+                                    line_buf = ('{}-{}'.format(n+1, line))
 
-                    buffer = [None] * before
+                                output(line_buf)
+                            else:
+                                line_buf = ('{}'.format(line))
+                                output(line_buf)
 
-                if params.line_number:
-                    line = '{}:{}'.format(n + 1, line)
-                output(line)
+                            buffer.pop(0)
 
-                count_after = after
 
-            elif count_after:
-                count_after -= 1
-                if params.line_number:
-                    line = '{}-{}'.format(n + 1, line)
-                output(line)
+                        buffer = [None] * all_context
 
-            else:
-                buffer.append(line)
-                if len(buffer) > before:
-                    buffer.pop(0)
+
+
+
+
+
 
 
 def parse_args(args):
