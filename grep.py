@@ -68,11 +68,6 @@ def grep(lines, params):
     if params.count:
         count(lines, params)
 
-    elif not params:
-        for line in lines:
-            line = line.rstrip()
-            if re.search(params.pattern, line):
-                output('{}'.format(line))
 
     else:
         if params.context or params.before_context or params.after_context:
@@ -84,6 +79,7 @@ def grep(lines, params):
         buffer = [None] * all_context
 
         print(buffer)
+        after = 0
 
         for n, line in enumerate(lines):
             line = line.rstrip()
@@ -91,33 +87,32 @@ def grep(lines, params):
             if compare(params.pattern, line, params.ignore_case, params.invert):
                 if params.line_number:
                     output('{}:{}'.format(n + 1, line))
-
                 else:
                     output('{}'.format(line))
 
             elif params.context or params.before_context or params.after_context:
                     if n in valid_index:
-                        for ind_buf,line_buf in enumerate(buffer):
-                            if params.line_number:
-                                if compare(params.pattern, line, params.ignore_case, params.invert):
-                                    line_buf = ('{}:{}'.format(n+1, line))
+                        if params.before_context or params.context:
+                            for ind_buf,line_buf in enumerate(buffer):
+                                if params.line_number:
+                                    if compare(params.pattern, line, params.ignore_case, params.invert):
+                                        line_buf = ('{}:{}'.format(n+1, line))
+                                    else:
+                                        line_buf = ('{}-{}'.format(n+1, line))
+
+                                    output(line_buf)
                                 else:
-                                    line_buf = ('{}-{}'.format(n+1, line))
+                                    line_buf = ('{}'.format(line))
+                                    output(line_buf)
+                                buffer.pop(0)
+                            buffer = [None] * all_context
+                            after=params.after_context
 
-                                output(line_buf)
-                            else:
-                                line_buf = ('{}'.format(line))
-                                output(line_buf)
-
-                            buffer.pop(0)
-
-
-                        buffer = [None] * all_context
-
-
-
-
-
+                        if params.after_context:
+                            after -= 1
+                            if params.line_number:
+                                line = ('{}-{}'.format(n+1, line))
+                            output(line)
 
 
 
